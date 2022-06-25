@@ -1,15 +1,16 @@
 //page js
 var loc = false, locip;
 var noNewSegs = false;
-var isOn = false, nlA = false, isLv = false, isInfo = false, isNodes = false, syncSend = false, syncTglRecv = true, isRgbw = false;
+var isOn = false, nlA = false, isLv = false, isInfo = false, isNodes = false, syncSend = false, syncTglRecv = true;
+var hasWhite = false, hasRGB = false, hasCCT = false;
 var whites = [0,0,0];
-var selColors;
+var colors = [[0,0,0],[0,0,0],[0,0,0]];
 var expanded = [false];
 var powered = [true];
 var nlDur = 60, nlTar = 0;
 var nlMode = false;
 var selectedFx = 0;
-var csel = 0;
+var csel = 0; // selected color slot (0-2)
 var currentPreset = -1;
 var lastUpdate = 0;
 var segCount = 0, ledCount = 0, lowestUnused = 0, maxSeg = 0, lSeg = 0;
@@ -60,27 +61,48 @@ function sCol(na, col) {
 	d.documentElement.style.setProperty(na, col);
 }
 
+function isRgbBlack(a, s) {
+	return (a[s][0] == 0 && a[s][1] == 0 && a[s][2] == 0);
+}
+
+// returns RGB color from a given slot s 0-2 from color array a
+function rgbStr(a, s) {
+	return "rgb(" + a[s][0] + "," + a[s][1] + "," + a[s][2] + ")";
+}
+
+// brightness approximation for selecting white as text color if background bri < 127, and black if higher
+function rgbBri(a, s) {
+	var R = a[s][0], G = a[s][1], B = a[s][2];
+	return 0.2126*R + 0.7152*G + 0.0722*B;
+}
+
+// sets background of color slot selectors
+function setCSL(s) {
+	var cd = d.getElementsByClassName('cl')[s];
+	var w = whites[s];
+	if (hasRGB && !isRgbBlack(colors, s)) {
+		cd.style.background = rgbStr(colors, s);
+		cd.style.color = rgbBri(colors, s) > 127 ? "#000":"#fff";
+		if (hasWhite && w > 0) {
+			cd.style.background = `linear-gradient(180deg, ${rgbStr(colors, s)} 30%, ${rgbStr([[w,w,w]], 0)})`;
+		}
+	} else {
+		if (!hasWhite) w = 0;
+		cd.style.background = rgbStr([[w,w,w]], 0);
+		cd.style.color = w > 127 ? "#000":"#fff";
+	}
+}
+
 function applyCfg()
 {
 	cTheme(cfg.theme.base === "light");
 	var bg = cfg.theme.color.bg;
 	if (bg) sCol('--c-1', bg);
-	var ccfg = cfg.comp.colors;
-	d.getElementById('hexw').style.display = ccfg.hex ? "block":"none";
-	d.getElementById('picker').style.display = ccfg.picker ? "block":"none";
-	d.getElementById('vwrap').style.display = ccfg.picker ? "block":"none";
-	d.getElementById('kwrap').style.display = ccfg.picker ? "block":"none";
-	d.getElementById('rgbwrap').style.display = ccfg.rgb ? "block":"none";
-	d.getElementById('qcs-w').style.display = ccfg.quick ? "block":"none";
+	if (lastinfo.leds) updateUI(); // update component visibility
 	var l = cfg.comp.labels;
-	var e = d.querySelectorAll('.tab-label');
-	for (var i=0; i<e.length; i++)
-		e[i].style.display = l ? "block":"none";
-	e = d.querySelector('.hd');
-	e.style.display = l ? "block":"none";
 	sCol('--tbp',l ? "14px 14px 10px 14px":"10px 22px 4px 22px");
 	sCol('--bbp',l ? "9px 0 7px 0":"10px 0 4px 0");
-	sCol('--bhd',l ? "block":"none");
+	sCol('--bhd',l ? "block":"none"); // hides/shows button labels
 	sCol('--bmt',l ? "0px":"5px");
 	sCol('--t-b', cfg.theme.alpha.tab);
 	size();
@@ -224,10 +246,6 @@ function onLoad() {
 		loadBg(cfg.theme.bg.url);
 	if (cfg.comp.css) loadSkinCSS('skinCss');
 
-	var cd = d.getElementById('csl').children;
-	for (var i = 0; i < cd.length; i++) {
-		cd[i].style.backgroundColor = "rgb(0, 0, 0)";
-	}
 	selectSlot(0);
 	updateTablinks(0);
 	resetUtil();
@@ -548,6 +566,7 @@ function populateInfo(i)
 function populateSegments(s)
 {
 	var cn = "";
+	let li = lastinfo;
 	segCount = 0; lowestUnused = 0; lSeg = 0;
 
 	for (var y = 0; y < (s.seg||[]).length; y++)
@@ -566,6 +585,7 @@ function populateSegments(s)
 				<input type="checkbox" id="seg${i}sel" onchange="selSeg(${i})" ${inst.sel ? "checked":""}>
 				<span class="checkmark schk"></span>
 			</label>
+			<i class="icons e-icon frz" id="seg${i}frz" onclick="event.preventDefault();tglFreeze(${i});" style="display:${inst.frz?"inline":"none"}">&#x${li.live && li.liveseg==i?'e410':'e325'};</i>
 			<div class="segname">
 				<div class="segntxt" onclick="selSegEx(${i})">${inst.n ? inst.n : "Segment "+i}</div>
 				<i class="icons edit-icon ${expanded[i] ? "expanded":""}" id="seg${i}nedit" onclick="tglSegn(${i})">&#xe2c6;</i>
@@ -753,11 +773,11 @@ function genPalPrevCss(id)
 			g = Math.random() * 255;
 			b = Math.random() * 255;
 		} else {
-			if (selColors) {
+			if (colors) {
 				let pos = element[1] - 1;
-				r = selColors[pos][0];
-				g = selColors[pos][1];
-				b = selColors[pos][2];
+				r = colors[pos][0];
+				g = colors[pos][1];
+				b = colors[pos][2];
 			}
 		}
 		if (index === false) {
@@ -904,22 +924,19 @@ function updateLen(s)
 function updatePA()
 {
 	var ps = d.getElementsByClassName("pres"); //reset all preset buttons
-	for (let i = 0; i < ps.length; i++) {
-		//ps[i].style.backgroundColor = "var(--c-2)";
-		ps[i].classList.remove("selected");
+	for (var i of ps) {
+		i.classList.remove("selected");
 	}
 	ps = d.getElementsByClassName("psts"); //reset all quick selectors
-	for (let i = 0; i < ps.length; i++) {
-		ps[i].style.backgroundColor = "var(--c-2)";
+	for (var i of ps) {
+		i.classList.remove("selected");
 	}
 	if (currentPreset > 0) {
 		var acv = d.getElementById(`p${currentPreset}o`);
 		if (acv && !expanded[currentPreset+100])
-			//acv.style.background = "var(--c-6)"; //highlight current preset
 			acv.classList.add("selected");
 		acv = d.getElementById(`p${currentPreset}qlb`);
 		if (acv)
-			//acv.style.background = "var(--c-6)"; //highlight quick selector
 			acv.classList.add("selected");
 	}
 }
@@ -933,9 +950,15 @@ function updateUI()
 	updateTrail(d.getElementById('sliderBri'));
 	updateTrail(d.getElementById('sliderSpeed'));
 	updateTrail(d.getElementById('sliderIntensity'));
-	d.getElementById('wwrap').style.display = (isRgbw) ? "block":"none";
-	d.getElementById('wbal').style.display = (lastinfo.leds.cct) ? "block":"none";
-	d.getElementById('kwrap').style.display = (lastinfo.leds.cct) ? "none":"block";
+	d.getElementById('wwrap').style.display = (hasWhite) ? "block":"none";
+	d.getElementById('wbal').style.display = (hasCCT) ? "block":"none";
+	var ccfg = cfg.comp.colors;
+	d.getElementById('hexw').style.display = ccfg.hex ? "block":"none";
+	d.getElementById('pwrap').style.display = (hasRGB && ccfg.picker) ? "block":"none";
+	d.getElementById('kwrap').style.display = (hasRGB && !hasCCT && ccfg.picker) ? "block":"none";
+	d.getElementById('rgbwrap').style.display = (hasRGB && ccfg.rgb) ? "block":"none";
+	d.getElementById('qcs-w').style.display = (hasRGB && ccfg.quick) ? "block":"none";
+	d.getElementById('palwrap').style.display = hasRGB ? "block":"none";
 
 	updatePA();
 	updatePSliders();
@@ -943,7 +966,7 @@ function updateUI()
 
 function displayRover(i,s)
 {
-	d.getElementById('rover').style.transform = (i.live && s.lor == 0) ? "translateY(0px)":"translateY(100%)";
+	d.getElementById('rover').style.transform = (i.live && s.lor == 0 && i.liveseg<0) ? "translateY(0px)":"translateY(100%)";
 	var sour = i.lip ? i.lip:""; if (sour.length > 2) sour = " from " + sour;
 	d.getElementById('lv').innerHTML = `WLED is receiving live ${i.lm} data${sour}`;
 	d.getElementById('roverstar').style.display = (i.live && s.lor) ? "block":"none";
@@ -974,7 +997,7 @@ function reconnectWS() {
 
 function makeWS() {
 	if (ws) return;
-	ws = new WebSocket('ws://'+(loc?locip:window.location.hostname)+'/ws');
+	ws = new WebSocket((window.location.protocol == 'https:'?'wss':'ws')+'://'+(loc?locip:window.location.hostname)+'/ws');
 	ws.binaryType = "arraybuffer";
 	ws.onmessage = function(event) {
 		if (event.data instanceof ArrayBuffer) return; //liveview packet
@@ -1017,27 +1040,45 @@ function readState(s,command=false) {
 	tr = s.transition;
 	d.getElementById('tt').value = tr/10;
 
-	var selc=0; var ind=0;
 	populateSegments(s);
+	var selc=0;
+	var sellvl=0; // 0: selc is invalid, 1: selc is mainseg, 2: selc is first selected
+	hasRGB = hasWhite = hasCCT = false;
 	for (let i = 0; i < (s.seg||[]).length; i++)
 	{
-		if(s.seg[i].sel) {selc = ind; break;} ind++;
+		if (sellvl == 0 && s.seg[i].id == s.mainseg) {
+			selc = i;
+			sellvl = 1;
+		}
+		if (s.seg[i].sel) {
+			if (sellvl < 2) selc = i; // get first selected segment
+			sellvl = 2;
+			var lc = lastinfo.leds.seglc[s.seg[i].id];
+			hasRGB   |= lc & 0x01;
+			hasWhite |= lc & 0x02;
+			hasCCT   |= lc & 0x04;
+		}
 	}
 	var i=s.seg[selc];
+	if (sellvl == 1) {
+		var lc = lastinfo.leds.seglc[i.id];
+		hasRGB   = lc & 0x01;
+		hasWhite = lc & 0x02;
+		hasCCT   = lc & 0x04;
+	}
 	if (!i) {
 		showToast('No Segments!', true);
 		updateUI();
 		return;
 	}
 	
-	selColors = i.col;
-	var cd = d.getElementById('csl').children;
-	for (let e = 2; e >= 0; e--)
+	colors = i.col;
+	for (let e = 0; e < 3; e++)
 	{
-		cd[e].style.backgroundColor = "rgb(" + i.col[e][0] + "," + i.col[e][1] + "," + i.col[e][2] + ")";
-		if (isRgbw) whites[e] = parseInt(i.col[e][3]);
-		selectSlot(csel);
+		if (i.col[e].length > 3) whites[e] = parseInt(i.col[e][3]);
+		setCSL(e);
 	}
+	selectSlot(csel);
 	if (i.cct != null && i.cct>=0) d.getElementById("sliderA").value = i.cct;
 
 	d.getElementById('sliderSpeed').value = i.sx;
@@ -1186,7 +1227,6 @@ function requestJson(command, rinfo = true) {
 				name = "(L) " + name;
 			}
 			d.title = name;
-			isRgbw = info.leds.wv;
 			ledCount = info.leds.count;
 			syncTglRecv = info.str;
 			maxSeg = info.leds.maxseg;
@@ -1605,7 +1645,11 @@ function setSegBri(s){
 function tglFreeze(s=null)
 {
 	var obj = {"seg": {"frz": "t"}}; // toggle
-	if (s!==null) obj.id = s;
+	if (s!==null) {
+		obj.seg.id = s;
+		// if live segment, enter live override (which also unfreezes)
+		if (lastinfo && s==lastinfo.liveseg && lastinfo.live) obj = {"lor":1};
+	}
 	requestJson(obj);
 }
 
@@ -1761,16 +1805,12 @@ function delP(i) {
 
 function selectSlot(b) {
 	csel = b;
-	var cd = d.getElementById('csl').children;
-	for (let i = 0; i < cd.length; i++) {
-		cd[i].style.border="2px solid white";
-		cd[i].style.margin="5px";
-		cd[i].style.width="42px";
+	var cd = d.getElementsByClassName('cl');
+	for (var i of cd) {
+		i.classList.remove("selected");
 	}
-	cd[csel].style.border="5px solid white";
-	cd[csel].style.margin="2px";
-	cd[csel].style.width="50px";
-	setPicker(cd[csel].style.backgroundColor);
+	cd[csel].classList.add("selected");
+	setPicker(rgbStr(colors, csel));
 	//force slider update on initial load (picker "color:change" not fired if black)
 	if (cpick.color.value == 0) updatePSliders();
 	d.getElementById('sliderW').value = whites[csel];
@@ -1876,17 +1916,13 @@ function fromRgb()
 
 //sr 0: from RGB sliders, 1: from picker, 2: from hex
 function setColor(sr) {
-	var cd = d.getElementById('csl').children;
-	if (sr == 1 && cd[csel].style.backgroundColor == "rgb(0, 0, 0)") cpick.color.setChannel('hsv', 'v', 100);
-	cd[csel].style.backgroundColor = cpick.color.rgbString;
+	if (sr == 1 && colors[csel][0] == 0 && colors[csel][1] == 0 && colors[csel][2] == 0) cpick.color.setChannel('hsv', 'v', 100);
 	if (sr != 2) whites[csel] = parseInt(d.getElementById('sliderW').value);
 	var col = cpick.color.rgb;
-	var obj = {"seg": {"col": [[col.r, col.g, col.b, whites[csel]],[],[]]}};
-	if (csel == 1) {
-		obj = {"seg": {"col": [[],[col.r, col.g, col.b, whites[csel]],[]]}};
-	} else if (csel == 2) {
-		obj = {"seg": {"col": [[],[],[col.r, col.g, col.b, whites[csel]]]}};
-	}
+	colors[csel] = [col.r, col.g, col.b, whites[csel]];
+	setCSL(csel);
+	var obj = {"seg": {"col": [[],[],[]]}};
+	obj.seg.col[csel] = colors[csel];
 	requestJson(obj);
 }
 

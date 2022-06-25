@@ -287,6 +287,7 @@ button {
 .tab-label {
 	margin: 0 0 -5px 0;
 	padding-bottom: 4px;
+	display: var(--bhd);
 }
 
 .overlay {
@@ -533,16 +534,19 @@ input[type=range]:active + .sliderbubble {
 	display: inline;
 	transform: translateX(-50%);
 }
-#wwrap, #wbal {
+/* hide color controls until enabled in updateUI() */
+#pwrap, #wwrap, #wbal, #rgbwrap, #palwrap {
 	display: none;
 }
 
+/* Slider wrapper div */
 .sliderwrap {
 	height: 30px;
 	width: 240px;
 	position: relative;
 }
 
+/* Segment power button + brightness slider wrapper div */
 .sbs {
 	margin: 0px -20px 5px -6px;
 }
@@ -552,6 +556,7 @@ input[type=range]:active + .sliderbubble {
 	margin-left: -7px;
 }
 
+/* Dynamically hide brightness slider label */
 .hd {
 	display: var(--bhd);
 }
@@ -564,10 +569,6 @@ input[type=range]:active + .sliderbubble {
 #picker {
 	margin: 10px auto;
 	width: 260px;
-}
-
-#rgbwrap {
-	display: none;
 }
 
 .btn {
@@ -588,6 +589,7 @@ input[type=range]:active + .sliderbubble {
 /* Small round button (color selectors, icon-only round buttons) */
 .xxs {
 	width: 40px;
+	height: 40px;
 	margin: 6px;
 }
 
@@ -622,6 +624,7 @@ input[type=range]:active + .sliderbubble {
 /* Quick color select buttons wrapper div */
 #qcs-w {
 	margin-top: 10px;
+	display: none;
 }
 
 /* Quick color select buttons */
@@ -651,7 +654,14 @@ input[type=range]:active + .sliderbubble {
 
 /* Color slot select buttons (1,2,3) */
 .cl {
-	width: 42px;
+	width: 38.5px;
+	height: 38.5px;
+	margin: 7px;
+	background-color: #000;
+	box-shadow: 0 0 0 1.5px #fff;
+}
+.selected.cl {
+	box-shadow: 0 0 0 5px #fff;
 }
 
 /* Playlist preset select */
@@ -852,6 +862,19 @@ input[type=number]::-webkit-outer-spin-button {
 	position: absolute;
 	bottom: 8px;
 	right: 8px;
+}
+
+.frz {
+	left: 36px;
+	position: absolute;
+	top: 0px;
+	cursor: pointer;
+	padding: 8px;
+}
+
+/* TODO expanded does not seem to apply to .frz, what is this for? */
+.expanded .frz {
+	display: none;
 }
 
 .check, .radio {

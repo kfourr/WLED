@@ -177,16 +177,9 @@ void calculateSunriseAndSunset();
 void setTimeFromAPI(uint32_t timein);
 
 //overlay.cpp
-void initCronixie();
-void handleOverlays();
 void handleOverlayDraw();
 void _overlayAnalogCountdown();
 void _overlayAnalogClock();
-
-byte getSameCodeLength(char code, int index, char const cronixieDisplay[]);
-void setCronixie();
-void _overlayCronixie();    
-void _drawOverlayCronixie();
 
 //playlist.cpp
 void shufflePlaylist();
@@ -197,8 +190,8 @@ void handlePlaylist();
 //presets.cpp
 bool applyPreset(byte index, byte callMode = CALL_MODE_DIRECT_CHANGE);
 inline bool applyTemporaryPreset() {return applyPreset(255);};
-void savePreset(byte index, bool persist = true, const char* pname = nullptr, JsonObject saveobj = JsonObject());
-inline void saveTemporaryPreset() {savePreset(255, false);};
+void savePreset(byte index, const char* pname = nullptr, JsonObject saveobj = JsonObject());
+inline void saveTemporaryPreset() {savePreset(255);};
 void deletePreset(byte index);
 
 //set.cpp
@@ -213,6 +206,7 @@ bool updateVal(const String* req, const char* key, byte* val, byte minv=0, byte 
 void notify(byte callMode, bool followUp=false);
 uint8_t realtimeBroadcast(uint8_t type, IPAddress client, uint16_t length, byte *buffer, uint8_t bri=255, bool isRGBW=false);
 void realtimeLock(uint32_t timeoutMs, byte md = REALTIME_MODE_GENERIC);
+void exitRealtime();
 void handleNotifications();
 void setRealtimePixel(uint16_t i, byte r, byte g, byte b, byte w);
 void refreshNodeList();
