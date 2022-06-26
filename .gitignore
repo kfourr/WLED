@@ -15,5 +15,3 @@
 node_modules
 .idea
 .direnv
-.vscode/extensions.json
-.gitignore

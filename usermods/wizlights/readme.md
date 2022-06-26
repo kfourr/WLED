@@ -6,13 +6,6 @@ The mod takes the colors from the first few pixels and sends them to the lights.
 
 ## Configuration
 
-<<<<<<< HEAD
-First, enter how often the data will be sent to the lights (in ms).
-
-Then enter the IPs for the lights to be controlled, in order. There is currently a limit of 10 devices that can be controled, but that number
-can be easily changed by updating _MAX_WIZ_LIGHTS_.
-
-=======
 - Interval (ms)
     - How frequently to update the WiZ lights, in milliseconds.
     - Setting too low may causse ESP to become unresponsive.
@@ -40,4 +33,3 @@ can be easily changed by updating _MAX_WIZ_LIGHTS_.
 
 If you use these lights and python, make sure to check out the [pywizlight](https://github.com/sbidy/pywizlight) project. I learned how to
 format the messages to control the lights from that project.
->>>>>>> fd4c0e795a4f70a0b35ab437a51f93d3f127544d
