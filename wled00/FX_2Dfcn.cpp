@@ -191,6 +191,7 @@ uint32_t WS2812FX::getPixelColorXY(uint16_t x, uint16_t y) {
 uint16_t /*IRAM_ATTR*/ Segment::XY(uint16_t x, uint16_t y) {
   uint16_t width  = virtualWidth();   // segment width in logical pixels
   uint16_t height = virtualHeight();  // segment height in logical pixels
+  if ((width == 0) || (height == 0)) return 0; // softhack007 avoid div/0
   return (x%width) + (y%height) * width;
 }
 
@@ -202,7 +203,6 @@ void /*IRAM_ATTR*/ Segment::setPixelColorXY(int x, int y, uint32_t col)
   if (leds) leds[XY(x,y)] = col;
 
   uint8_t _bri_t = currentBri(on ? opacity : 0);
-  if (!_bri_t && !transitional) return;
   if (_bri_t < 255) {
     byte r = scale8(R(col), _bri_t);
     byte g = scale8(G(col), _bri_t);
