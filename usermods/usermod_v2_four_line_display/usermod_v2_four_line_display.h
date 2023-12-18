@@ -51,7 +51,7 @@
     #define FLD_PIN_DC 12
   #endif
   #ifndef FLD_PIN_RESET
-    #define FLD_PIN_RESET 16
+    #define FLD_PIN_RESET 4
   #endif
 #endif
 
